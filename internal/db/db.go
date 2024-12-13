@@ -27,26 +27,3 @@ func NewRepository(cfg config.DBConfig) (*Repository, error) {
 	log.Printf("successfully connected to database '%s'\n", cfg.Name)
 	return &Repository{db}, nil
 }
-
-func (r *Repository) GetPrices() ([]Price, error) {
-	prices := make([]Price, 0)
-
-	rows, err := r.db.Query("SELECT * FROM prices")
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var price Price
-		err = rows.Scan(&price.ID, &price.Name, &price.Category, &price.Price, &price.CreateDate)
-		if err != nil {
-			return nil, err
-		}
-		prices = append(prices, price)
-	}
-	return prices, nil
-}
-
-func (r *Repository) CreatePrices(prices []Price) error {
-	return nil
-}
-

@@ -10,6 +10,7 @@ type ServerConfig struct {
 	ReadTimeout  time.Duration
 	WriteTimeout time.Duration
 }
+
 type DBConfig struct {
 	Host     string
 	Port     int
@@ -17,6 +18,7 @@ type DBConfig struct {
 	Password string
 	Name     string
 }
+
 type Config struct {
 	Server ServerConfig
 	DB     DBConfig
@@ -26,8 +28,8 @@ func Load() Config {
 	log.Println("loading configuration...")
 	return Config{
 		Server: ServerConfig{
-			Port: 8080,
-			ReadTimeout: 10 * time.Second,
+			Port:         8080,
+			ReadTimeout:  10 * time.Second,
 			WriteTimeout: 10 * time.Second,
 		},
 		DB: DBConfig{

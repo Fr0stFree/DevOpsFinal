@@ -1,55 +1,55 @@
-package utils
+package handlers
 
 import (
 	"archive/zip"
 	"bytes"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"io"
-	"project_sem/internal/db"
+	"log"
+	"net/http"
 	"strconv"
+
+	"project_sem/internal/db"
 )
 
-func ArchivePrices(prices []db.Price, w io.Writer, fileName string) error {
-	zipWriter := zip.NewWriter(w)
-	defer zipWriter.Close()
-
-	file, err := zipWriter.Create(fileName)
-	if err != nil {
-		return err
-	}
-
-	csvWriter := csv.NewWriter(file)
-	defer csvWriter.Flush()
-
-	csvWriter.Write([]string{"id", "name", "category", "price", "create_date"})
-	for _, price := range prices {
-		record := []string{
-			fmt.Sprintf("%d", price.ID),
-			price.Name,
-			price.Category,
-			fmt.Sprintf("%.2f", price.Price),
-			price.CreateDate,
-		}
-		err := csvWriter.Write(record)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+type PriceStats struct {
+	TotalItems      int `json:"total_items"`
+	TotalCategories int `json:"total_categories"`
+	TotalPrice      int `json:"total_price"`
 }
 
-func UnarchivePrices(r io.ReadCloser) ([]db.Price, error) {
+func createPrices(repo *db.Repository) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		prices, err := unarchivePrices(r.Body)
+		if err != nil {
+			log.Printf("failed to load prices from incoming file: %v\n", err)
+			http.Error(w, "failed to upload prices", http.StatusInternalServerError)
+			return
+		}
+		err = repo.CreatePrices(prices)
+		if err != nil {
+			log.Printf("failed to save prices into db: %v\n", err)
+			http.Error(w, "failed to upload prices", http.StatusInternalServerError)
+			return
+		}
+		stats := calculatePriceStats(prices)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(stats)
+	}
+}
+
+func unarchivePrices(r io.Reader) ([]db.Price, error) {
 	data, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
 	}
-
 	zipReader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return nil, err
 	}
-
 	prices := make([]db.Price, 0)
 	for _, file := range zipReader.File {
 		rc, err := file.Open()
@@ -76,6 +76,7 @@ func UnarchivePrices(r io.ReadCloser) ([]db.Price, error) {
 	return prices, nil
 }
 
+
 func parsePrice(record []string) (db.Price, error) {
 	id, err := strconv.Atoi(record[0])
 	if err != nil {
@@ -85,7 +86,6 @@ func parsePrice(record []string) (db.Price, error) {
 	if err != nil {
 		return db.Price{}, fmt.Errorf("failed to convert cost to float %v", err)
 	}
-
 	price := db.Price{
 		ID:         id,
 		Name:       record[1],
@@ -96,13 +96,7 @@ func parsePrice(record []string) (db.Price, error) {
 	return price, nil
 }
 
-type PriceStats struct {
-	TotalItems      int `json:"total_items"`
-	TotalCategories int `json:"total_categories"`
-	TotalPrice      int `json:"total_price"`
-}
-
-func CalculatePriceStats(prices []db.Price) PriceStats {
+func calculatePriceStats(prices []db.Price) PriceStats {
 	stats := PriceStats{}
 	categories := make(map[string]bool)
 	for _, price := range prices {

@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,32 +16,30 @@ import (
 	"project_sem/internal/handlers"
 )
 
-type Application struct {
+type App struct {
 	server *http.Server
 }
 
-func NewApp(config config.Config) *Application {
+func New(config config.Config) *App {
 	repo, err := db.NewRepository(config.DB)
 	if err != nil {
 		log.Fatalf("failed to create repository with error %s", err)
 	}
-	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/v0/prices", handlers.GetPrices(repo))
-	mux.HandleFunc("POST /api/v0/prices", handlers.CreatePrices(repo))
+	router := handlers.NewServerRouter(repo)
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.Server.Port),
-		Handler:      mux,
+		Handler:      router,
 		ReadTimeout:  config.Server.ReadTimeout,
 		WriteTimeout: config.Server.WriteTimeout,
 	}
-	return &Application{server}
+	return &App{server}
 }
 
-func (app *Application) Run() {
+func (app *App) Run() {
 	go func() {
 		log.Printf("starting server on %s...\n", app.server.Addr)
 		err := app.server.ListenAndServe()
-		if err != nil {
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
 			log.Fatalf("server has failed with %s", err)
 		}
 	}()
