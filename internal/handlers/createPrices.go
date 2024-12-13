@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"project_sem/internal/db"
 )
@@ -20,7 +21,7 @@ type PriceStats struct {
 	TotalPrice      int `json:"total_price"`
 }
 
-func createPrices(repo *db.Repository) http.HandlerFunc {
+func CreatePrices(repo *db.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		prices, err := unarchivePrices(r.Body)
 		if err != nil {
@@ -34,6 +35,7 @@ func createPrices(repo *db.Repository) http.HandlerFunc {
 			http.Error(w, "failed to upload prices", http.StatusInternalServerError)
 			return
 		}
+		log.Printf("successfully created prices %v", prices)
 		stats := calculatePriceStats(prices)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
@@ -67,7 +69,8 @@ func unarchivePrices(r io.Reader) ([]db.Price, error) {
 			}
 			price, err := parsePrice(record)
 			if err != nil {
-				return nil, err
+				log.Printf("price conversion failed %v\n", err)
+				continue
 			}
 			prices = append(prices, price)
 		}
@@ -76,22 +79,36 @@ func unarchivePrices(r io.Reader) ([]db.Price, error) {
 	return prices, nil
 }
 
-
 func parsePrice(record []string) (db.Price, error) {
+	if len(record) != 5 {
+		return db.Price{}, fmt.Errorf("invalid record %v", record)
+	}
 	id, err := strconv.Atoi(record[0])
 	if err != nil {
 		return db.Price{}, fmt.Errorf("failed to convert id to int %v", err)
+	}
+	name := record[1]
+	if name == "" {
+		return db.Price{}, fmt.Errorf("name cannot be empty")
+	}
+	category := record[2]
+	if category == "" {
+		return db.Price{}, fmt.Errorf("category cannot be empty")
 	}
 	cost, err := strconv.ParseFloat(record[3], 64)
 	if err != nil {
 		return db.Price{}, fmt.Errorf("failed to convert cost to float %v", err)
 	}
+	create_date, err := time.Parse("2006-01-02", record[4])
+	if err != nil {
+		return db.Price{}, fmt.Errorf("failed to convert creation date %v", err)
+	}
 	price := db.Price{
 		ID:         id,
-		Name:       record[1],
-		Category:   record[2],
+		Name:       name,
+		Category:   category,
 		Price:      cost,
-		CreateDate: record[4],
+		CreateDate: create_date,
 	}
 	return price, nil
 }

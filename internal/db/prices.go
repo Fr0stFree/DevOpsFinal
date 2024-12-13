@@ -3,14 +3,15 @@ package db
 import (
 	"fmt"
 	"strings"
+	"time"
 )
 
 type Price struct {
-	ID    int
-	Name  string
-	Category string
-	Price float64
-	CreateDate string
+	ID         int
+	Name       string
+	Category   string
+	Price      float64
+	CreateDate time.Time
 }
 
 func (r *Repository) GetPrices() ([]Price, error) {
@@ -34,7 +35,7 @@ func (r *Repository) GetPrices() ([]Price, error) {
 func (r *Repository) CreatePrices(prices []Price) error {
 	values := make([]string, len(prices))
 	for idx, price := range prices {
-		values[idx] = fmt.Sprintf("('%d', '%s', '%s', '%f', '%s')", price.ID, price.Name, price.Category, price.Price, price.CreateDate)
+		values[idx] = fmt.Sprintf("('%d', '%s', '%s', '%f', '%s')", price.ID, price.Name, price.Category, price.Price, price.CreateDate.Format("2006-01-02"))
 	}
 	_, err := r.db.Exec(fmt.Sprintf("INSERT INTO prices (id, name, category, price, create_date) VALUES %s", strings.Join(values, ",")))
 	if err != nil {
@@ -42,4 +43,3 @@ func (r *Repository) CreatePrices(prices []Price) error {
 	}
 	return nil
 }
-

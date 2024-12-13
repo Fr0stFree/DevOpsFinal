@@ -13,7 +13,6 @@ import (
 
 	"project_sem/internal/config"
 	"project_sem/internal/db"
-	"project_sem/internal/handlers"
 )
 
 type App struct {
@@ -25,7 +24,7 @@ func New(config config.Config) *App {
 	if err != nil {
 		log.Fatalf("failed to create repository with error %s", err)
 	}
-	router := handlers.NewServerRouter(repo)
+	router := NewServerRouter(repo)
 	server := &http.Server{
 		Addr:         fmt.Sprintf(":%d", config.Server.Port),
 		Handler:      router,

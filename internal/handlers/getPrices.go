@@ -11,7 +11,7 @@ import (
 	"project_sem/internal/db"
 )
 
-func getPrices(repo *db.Repository) http.HandlerFunc {
+func GetPrices(repo *db.Repository) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		prices, err := repo.GetPrices()
 		if err != nil {
@@ -49,7 +49,7 @@ func archivePrices(prices []db.Price, w io.Writer, fileName string) error {
 			price.Name,
 			price.Category,
 			fmt.Sprintf("%.2f", price.Price),
-			price.CreateDate,
+			price.CreateDate.Format("2006-01-02"),
 		}
 		err := csvWriter.Write(record)
 		if err != nil {
